@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>接诉即办-后台</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    :root {
+      --primary: #0052d9; --danger: #f53f3f; --success: #00b42a;
+      --bg: #f2f5fa; --card: #ffffff; --text: #333; --border: #e5e6eb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; }
+    body { background: var(--bg); color: var(--text); }
+    a { color: var(--primary); text-decoration: none; }
+    /* 登录页 */
+    .login-wrap { height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .login-card { width: 380px; background: var(--card); border-radius: 8px; padding: 32px 40px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); }
+    .login-card h2 { margin-bottom: 24px; text-align: center; }
+    .login-card input { width: 100%; padding: 10px 12px; margin-bottom: 16px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px; }
+    .login-card button { width: 100%; padding: 10px; background: var(--primary); color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 15px; }
+    .login-card button:hover { opacity: 0.9; }
+    /* 框架 */
+    .layout { display: none; height: 100vh; overflow: hidden; }
+    .layout.show { display: flex; }
+    .sidebar { width: 220px; background: var(--card); border-right: 1px solid var(--border); padding: 20px 0; }
+    .sidebar .logo { font-size: 18px; font-weight: bold; text-align: center; margin-bottom: 30px; }
+    .sidebar .menu { list-style: none; }
+    .sidebar .menu li { padding: 12px 24px; cursor: pointer; transition: background 0.2s; }
+    .sidebar .menu li:hover, .sidebar .menu li.active { background: #e6f2ff; color: var(--primary); }
+    .main { flex: 1; display: flex; flex-direction: column; }
+    .header { height: 56px; background: var(--card); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+    .content { flex: 1; padding: 24px; overflow-y: auto; }
+    .card { background: var(--card); border-radius: 6px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06); }
+    .card h3 { margin-bottom: 16px; }
+    .table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .table th, .table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    .table th { background: #f7f8fa; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 12px; color: #fff; }
+    .tag.wait { background: #ff7d00; }
+    .tag.doing { background: var(--primary); }
+    .tag.done { background: var(--success); }
+    .btn { padding: 5px 10px; border-radius: 4px; border: none; font-size: 13px; cursor: pointer; }
+    .btn-sm { padding: 3px 8px; font-size: 12px; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-success { background: var(--success); color: #fff; }
+    .filter-bar { display: flex; gap: 12px; margin-bottom: 16px; }
+    .filter-bar input, .filter-bar select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; }
+    .modal { position: fixed; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); display: none; align-items: center; justify-content: center; z-index: 999; }
+    .modal.show { display: flex; }
+    .modal-card { background: var(--card); width: 600px; max-width: 90vw; border-radius: 8px; padding: 24px; position: relative; }
+    .modal-card .close { position: absolute; right: 16px; top: 16px; cursor: pointer; font-size: 20px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 500; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px; }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+  </style>
+</head>
+<body>
+
+<!-- 登录 -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-card">
+    <h2>后台登录</h2>
+    <input type="text" id="user" placeholder="账号（admin）">
+    <input type="password" id="pwd" placeholder="密码（123456）">
+    <button onclick="login()">登 录</button>
+  </div>
+</div>
+
+<!-- 主框架 -->
+<div class="layout" id="layout">
+  <aside class="sidebar">
+    <div class="logo">接诉即办后台</div>
+    <ul class="menu">
+      <li class="active" onclick="switchTab('dashboard')">仪表盘</li>
+      <li onclick="switchTab('ticket')">工单管理</li>
+      <li onclick="switchTab('stats')">数据统计</li>
+      <li onclick="switchTab('account')">账号管理</li>
+      <li onclick="logout()">退出</li>
+    </ul>
+  </aside>
+  <div class="main">
+    <header class="header">
+      <div>欢迎，<span id="uname"></span></div>
+      <div><button class="btn btn-danger btn-sm" onclick="logout()">退出</button></div>
+    </header>
+    <div class="content" id="content">
+      <!-- 仪表盘 -->
+      <div id="dashboard" class="tab">
+        <div class="card"><h3>今日概览</h3>
+          <div style="display:flex;gap:40px;font-size:15px;">
+            <div>待受理：<b id="waitNum">0</b></div>
+            <div>处理中：<b id="doingNum">0</b></div>
+            <div>已办结：<b id="doneNum">0</b></div>
+          </div>
+        </div>
+        <div class="card"><h3>最新工单</h3>
+          <table class="table">
+            <thead><tr><th>编号</th><th>标题</th><th>提交人</th><th>时间</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody id="latestList"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- 工单管理 -->
+      <div id="ticket" class="tab" style="display:none">
+        <div class="card"><h3>工单列表</h3>
+          <div class="filter-bar">
+            <input type="text" id="searchKey" placeholder="编号/标题/提交人">
+            <select id="statusFilter"><option value="">全部状态</option><option value="wait">待受理</option><option value="doing">处理中</option><option value="done">已办结</option></select>
+            <button class="btn btn-primary" onclick="loadTickets()">查询</button>
+            <button class="btn btn-success" onclick="showDetail()">+ 新建工单（测试）</button>
+          </div>
+          <table class="table">
+            <thead><tr><th>编号</th><th>标题</th><th>提交人</th><th>宿舍楼</th><th>提交时间</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody id="ticketList"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- 数据统计 -->
+      <div id="stats" class="tab" style="display:none">
+        <div class="card"><h3>工单趋势（近7日）</h3><div class="chart-box"><canvas id="lineChart"></canvas></div></div>
+        <div class="card"><h3>分类占比</h3><div class="chart-box"><canvas id="pieChart"></canvas></div></div>
+      </div>
+      <!-- 账号管理 -->
+      <div id="account" class="tab" style="display:none">
+        <div class="card"><h3>后台账号</h3>
+          <button class="btn btn-primary" onclick="showUserModal()">+ 新增账号</button>
+          <table class="table" style="margin-top:16px"><thead><tr><th>账号</th><th>角色</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="userList"></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 工单详情 -->
+<div class="modal" id="detailModal">
+  <div class="modal-card">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <h3 id="modalTitle">工单详情</h3>
+    <form id="detailForm">
+      <div class="form-group"><label>编号</label><input id="d_no" readonly></div>
+      <div class="form-group"><label>标题</label><input id="d_title" readonly></div>
+      <div class="form-group"><label>提交人</label><input id="d_user" readonly></div>
+      <div class="form-group"><label>宿舍楼</label><input id="d_building" readonly></div>
+      <div class="form-group"><label>问题描述</label><textarea id="d_content" readonly></textarea></div>
+      <div class="form-group"><label>当前状态</label>
+        <select id="d_status"><option value="wait">待受理</option><option value="doing">处理中</option><option value="done">已办结</option></select>
+      </div>
+      <div class="form-group"><label>处理记录</label><textarea id="d_log" placeholder="填写处理过程或结果"></textarea></div>
+      <div style="text-align:right"><button type="button" class="btn" onclick="closeModal()">取消</button><button type="button" class="btn btn-primary" onclick="saveTicket()">保存</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- 新增账号 -->
+<div class="modal" id="userModal">
+  <div class="modal-card" style="width:380px">
+    <span class="close" onclick="closeUserModal()">&times;</span>
+    <h3>新增账号</h3>
+    <form id="userForm">
+      <div class="form-group"><label>账号</label><input id="u_name" required></div>
+      <div class="form-group"><label>密码</label><input id="u_pwd" type="password" required></div>
+      <div class="form-group"><label>角色</label><select id="u_role"><option value="admin">管理员</option><option value="operator">操作员</option></select></div>
+      <div style="text-align:right"><button type="button" class="btn" onclick="closeUserModal()">取消</button><button type="button" class="btn btn-primary" onclick="saveUser()">确定</button></div>
+    </form>
+  </div>
+</div>
+
+<script>
+  /* ---------- 常量 ---------- */
+  const STORAGE_TICKETS = 'jisuban_tickets';
+  const STORAGE_USERS   = 'jisuban_users';
+  const STORAGE_CURUSER = 'jisuban_curUser';
+
+  /* ---------- 登录 ---------- */
+  function login() {
+    const user = document.getElementById('user').value.trim();
+    const pwd  = document.getElementById('pwd').value.trim();
+    if (user === 'admin' && pwd === '123456') {
+      localStorage.setItem(STORAGE_CURUSER, JSON.stringify({name: user}));
+      document.getElementById('loginWrap').style.display = 'none';
+      document.getElementById('layout').classList.add('show');
+      document.getElementById('uname').textContent = user;
+      init();
+    } else {
+      alert('账号或密码错误');
+    }
+  }
+  function logout() {
+    localStorage.removeItem(STORAGE_CURUSER);
+    location.reload();
+  }
+
+  /* ---------- 路由 ---------- */
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.style.display = 'none');
+    document.getElementById(name).style.display = 'block';
+    document.querySelectorAll('.menu li').forEach(li => li.classList.remove('active'));
+    event.target.classList.add('active');
+    if (name === 'dashboard') loadDashboard();
+    if (name === 'ticket') loadTickets();
+    if (name === 'stats') loadStats();
+    if (name === 'account') loadUsers();
+  }
+
+  /* ---------- 仪表盘 ---------- */
+  function loadDashboard() {
+    const list = JSON.parse(localStorage.getItem(STORAGE_TICKETS) || '[]');
+    const wait = list.filter(x => x.status === 'wait').length;
+    const doing = list.filter(x => x.status === 'doing').length;
+    const done = list.filter(x => x.status === 'done').length;
+    document.getElementById('waitNum').textContent = wait;
+    document.getElementById('doingNum').textContent = doing;
+    document.getElementById('doneNum').textContent = done;
+    const latest = list.sort((a, b) => b.time - a.time).slice(0, 5);
+    const html = latest.map(t => `
+      <tr>
+        <td>${t.no}</td><td>${t.title}</td><td>${t.user}</td><td>${fmtTime(t.time)}</td>
+        <td>${fmtStatus(t.status)}</td>
+        <td><button class="btn btn-sm btn-primary" onclick="showDetail('${t.id}')">查看</button></td>
+      </tr>`).join('');
+    document.getElementById('latestList').innerHTML = html;
+  }
+
+  /* ---------- 工单 ---------- */
+  function loadTickets() {
+    const key = document.getElementById('searchKey').value.trim().toLowerCase();
+    const st = document.getElementById('statusFilter').value;
+    let list = JSON.parse(localStorage.getItem(STORAGE_TICKETS) || '[]');
+    if (key) list = list.filter(x => `${x.no}${x.title}${x.user}`.toLowerCase().includes(key));
+    if (st) list = list.filter(x => x.status === st);
+    const html = list.map(t => `
+      <tr>
+        <td>${t.no}</td><td>${t.title}</td><td>${t.user}</td><td>${t.building}</td>
+        <td>${fmtTime(t.time)}</td><td>${fmtStatus(t.status)}</td>
+        <td>
+          <button class="btn btn-sm btn-primary" onclick="showDetail('${t.id}')">处理</button>
+          <button class="btn btn-sm btn-danger" onclick="delTicket('${t.id}')">删除</button>
+        </td>
+      </tr>`).join('');
+    document.getElementById('ticketList').innerHTML = html || '<tr><td colspan="7">暂无数据</td></tr>';
+  }
+  function showDetail(id) {
+    const list = JSON.parse(localStorage.getItem(STORAGE_TICKETS) || '[]');
+    const t = id ? list.find(x => x.id === id) : {
+      id: '_new', no: 'T' + Date.now().toString().slice(2),
+      title: '', user: '', building: '', content: '', status: 'wait', log: '', time: Date.now()
+    };
+    ['d_no', 'd_title', 'd_user', 'd_building', 'd_content', 'd_status', 'd_log'].forEach(k => {
+      document.getElementById(k).value = t[k] || '';
+    });
+    document.getElementById('modalTitle').textContent = id ? '工单详情' : '新建工单（演示）';
+    document.getElementById('detailModal').classList.add('show');
+    const ro = !id ? false : true;
+    ['d_title', 'd_user', 'd_building', 'd_content'].forEach(i => {
+      document.getElementById(i).readOnly = ro;
+    });
+  }
+  function closeModal() { document.getElementById('detailModal').classList.remove('show'); }
+  function saveTicket() {
+    const id = document.getElementById('d_no').value;
+    const list = JSON.parse(localStorage.getItem(STORAGE_TICKETS) || '[]');
+    const idx = list.findIndex(x => x.no === id);
+    const item = {
+      id: id, no: id, title: document.getElementById('d_title').value.trim(),
+      user: document.getElementById('d_user').value.trim(),
+      building: document.getElementById('d_building').value.trim(),
+      content: document.getElementById('d_content').value.trim(),
+      status: document.getElementById('d_status').value,
+      log: document.getElementById('d_log').value.trim(),
+      time: idx >= 0 ? list[idx].time : Date.now()
+    };
+    if (idx >= 0) list[idx] = item; else list.unshift(item);
+    localStorage.setItem(STORAGE_TICKETS, JSON.stringify(list));
+    closeModal(); loadTickets(); loadDashboard();
+  }
+  function delTicket(id) {
+    if (!confirm('确定删除？')) return;
+    let list = JSON.parse(localStorage.getItem(STORAGE_TICKETS) || '[]');
+    list = list.filter(x => x.id !== id);
+    localStorage.setItem(STORAGE_TICKETS, JSON.stringify(list));
+    loadTickets(); loadDashboard();
+  }
+
+  /* ---------- 统计 ---------- */
+  function loadStats() {
+    const list = JSON.parse(localStorage.getItem(STORAGE_TICKETS) || '[]');
+    const dayArr = []; const today = new Date();
+    for (let i = 6; i >= 0; i--) { const d = new Date(today); d.setDate(d.getDate() - i); dayArr.push(fmtDate(d)); }
+    const dayCount = dayArr.map(d => list.filter(x => fmtDate(x.time) === d).length);
+    drawLine(dayArr, dayCount);
+    const pie = {
+      wait: list.filter(x => x.status === 'wait').length,
+      doing: list.filter(x => x.status === 'doing').length,
+      done: list.filter(x => x.status === 'done').length
+    };
+    drawPie(pie);
+  }
+  function drawLine(labels, data) {
+    const c = document.getElementById('lineChart'); const ctx = c.getContext('2d');
+    const width = c.parentElement.clientWidth, height = 240; c.width = width; c.height = height;
+    const padding = 40, max = Math.max(...data, 1), step = (width - 2 * padding) / (labels.length - 1);
+    ctx.strokeStyle = '#ddd'; ctx.beginPath(); ctx.moveTo(padding, padding); ctx.lineTo(padding, height - padding); ctx.lineTo(width - padding, height - padding); ctx.stroke();
+    ctx.strokeStyle = '#0052d9'; ctx.lineWidth = 2; ctx.beginPath();
+    data.forEach((v, i) => { const x = padding + i * step; const y = height - padding - (v / max) * (height - 2 * padding); i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }); ctx.stroke();
+    ctx.fillStyle = '#0052d9'; data.forEach((v, i) => { const x = padding + i * step; const y = height - padding - (v / max) * (height - 2 * padding); ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill(); });
+    ctx.fillStyle = '#666'; ctx.font = '12px sans-serif'; labels.forEach((l, i) => { const x = padding + i * step; ctx.fillText(l, x - 10, height - padding + 20); }); for (let i = 0; i <= 4; i++) { const v = Math.round((max / 4) * i); const y = height - padding - (v / max) * (height - 2 * padding); ctx.fillText(v, 5, y + 4); }
+  }
+  function drawPie(data) {
+    const c = document.getElementById('pieChart'); const ctx = c.getContext('2d');
+    const width = c.parentElement.clientWidth, height = 240; c.width = width; c.height = height;
+    const centerX = width / 2, centerY = height / 2, radius = Math.min(centerX, centerY) - 30;
+    const total = data.wait + data.doing + data.done; const colors = ['#ff7d00', '#0052d9', '#00b42a']; const labels = ['待受理', '处理中', '已办结'];
+    let curAngle = -Math.PI / 2; labels.forEach((l, i) => {
+      const val = [data.wait, data.doing, data.done][i]; const angle = (val / total) * Math.PI * 2;
+      ctx.beginPath(); ctx.moveTo(centerX, centerY); ctx.arc(centerX, centerY, radius, curAngle, curAngle + angle); ctx.closePath(); ctx.fillStyle = colors[i]; ctx.fill();
+      const txtAngle = curAngle + angle / 2; const x = centerX + Math.cos(txtAngle) * (radius * 0.7); const y = centerY + Math.sin(txtAngle) * (radius * 0.7);
+      ctx.fillStyle = '#fff'; ctx.font = '14px sans-serif'; ctx.fillText(l, x - 12, y + 5); curAngle += angle;
+    });
+  }
+
+  /* ---------- 账号 ---------- */
+  function loadUsers() {
+    const users = JSON.parse(localStorage.getItem(STORAGE_USERS) || '[]');
+    const html = users.map(u => `
+      <tr>
+        <td>${u.name}</td><td>${u.role === 'admin' ? '管理员' : '操作员'}</td><td>${fmtTime(u.time)}</td>
+        <td><button class="btn btn-sm btn-danger" onclick="delUser('${u.name}')">删除</button></td>
+      </tr>`).join('');
+    document.getElementById('userList').innerHTML = html;
+  }
+  function showUserModal() { document.getElementById('userModal').classList.add('show'); }
+  function closeUserModal() { document.getElementById('userModal').classList.remove('show'); document.getElementById('userForm').reset(); }
+  function saveUser() {
+    const name = document.getElementById('u_name').value.trim();
+    const pwd = document.getElementById('u_pwd').value.trim();
+    const role = document.getElementById('u_role').value;
+    if (!name || !pwd) return alert('请填写完整');
+    const users = JSON.parse(localStorage.getItem(STORAGE_USERS) || '[]');
+    if (users.find(x => x.name === name)) return alert('账号已存在');
+    users.push({ name, pwd, role, time: Date.now() });
+    localStorage.setItem(STORAGE_USERS, JSON.stringify(users));
+    closeUserModal(); loadUsers();
+  }
+  function delUser(name) {
+    if (!confirm('确定删除？')) return;
+    let users = JSON.parse(localStorage.getItem(STORAGE_USERS) || '[]');
+    users = users.filter(x => x.name !== name);
+    localStorage.setItem(STORAGE_USERS, JSON.stringify(users));
+    loadUsers();
+  }
+
+  /* ---------- 工具 ---------- */
+  function fmtTime(ts) {
+    const d = new Date(Number(ts)); const pad = n => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function fmtDate(ts) {
+    const d = new Date(Number(ts)); const pad = n => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+  function fmtStatus(st) {
+    const map = { wait: '待受理', doing: '处理中', done: '已办结' };
+    const cls = { wait: 'wait', doing: 'doing', done: 'done' };
+    return `<span class="tag ${cls[st]}">${map[st]}</span>`;
+  }
+  function init() {
+    loadDashboard();
+  }
+</script>
+</body>
+</html>
